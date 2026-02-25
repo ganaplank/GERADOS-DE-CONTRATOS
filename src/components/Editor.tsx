@@ -59,6 +59,10 @@ export const Editor: React.FC<EditorProps> = ({ template, setTemplate, variables
       };
 
       recognitionRef.current.onerror = (event: any) => {
+        if (event.error === 'no-speech') {
+          // Ignore no-speech errors, they happen when the user is silent for a while
+          return;
+        }
         console.error('Speech recognition error', event.error);
         setIsListening(false);
       };
