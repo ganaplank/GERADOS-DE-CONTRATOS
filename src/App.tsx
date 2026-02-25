@@ -60,7 +60,12 @@ export default function App() {
   
   // UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'templates' | 'help'>('templates');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'templates' | 'help' | 'design'>('templates');
+
+  // Design States
+  const [logoPosition, setLogoPosition] = useLocalStorage<{x: number, y: number}>('sell-logo-pos', { x: 0, y: 0 });
+  const [isDraggingEnabled, setIsDraggingEnabled] = useState(false);
+  const [showFooterLogo, setShowFooterLogo] = useLocalStorage<boolean>('sell-footer-logo', false);
 
   const variables = useMemo(() => extractVariables(template), [template]);
 
@@ -198,6 +203,17 @@ export default function App() {
               <HelpCircle className="w-3.5 h-3.5" />
               Como Usar
             </button>
+            <button
+              onClick={() => setActiveSidebarTab('design')}
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border-b-2 ${
+                activeSidebarTab === 'design' 
+                  ? 'border-sell-green text-sell-blue bg-slate-50/50' 
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Design
+            </button>
           </div>
           
           <div className="flex-1 overflow-y-auto">
@@ -237,7 +253,7 @@ export default function App() {
                   ))
                 )}
               </div>
-            ) : (
+            ) : activeSidebarTab === 'help' ? (
               <div className="p-6 space-y-8">
                 <section className="space-y-3">
                   <h4 className="text-[10px] font-black text-sell-blue uppercase tracking-widest flex items-center gap-2">
@@ -299,6 +315,64 @@ export default function App() {
                   </p>
                 </div>
               </div>
+            ) : (
+              <div className="p-6 space-y-8">
+                <section className="space-y-4">
+                  <h4 className="text-[10px] font-black text-sell-blue uppercase tracking-widest flex items-center gap-2">
+                    <Settings className="w-3.5 h-3.5 text-sell-green" />
+                    Ajustes Visuais
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">Edição Visual</p>
+                        <p className="text-[10px] text-slate-400">Arraste o logo na prévia</p>
+                      </div>
+                      <button 
+                        onClick={() => setIsDraggingEnabled(!isDraggingEnabled)}
+                        className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                          isDraggingEnabled 
+                            ? 'bg-sell-green text-white shadow-lg' 
+                            : 'bg-white text-slate-400 border border-slate-200'
+                        }`}
+                      >
+                        {isDraggingEnabled ? 'Ativo' : 'Ativar'}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">Logo no Rodapé</p>
+                        <p className="text-[10px] text-slate-400">Repetir em todas as páginas</p>
+                      </div>
+                      <button 
+                        onClick={() => setShowFooterLogo(!showFooterLogo)}
+                        className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                          showFooterLogo 
+                            ? 'bg-sell-green text-white shadow-lg' 
+                            : 'bg-white text-slate-400 border border-slate-200'
+                        }`}
+                      >
+                        {showFooterLogo ? 'Sim' : 'Não'}
+                      </button>
+                    </div>
+
+                    <button 
+                      onClick={() => setLogoPosition({ x: 0, y: 0 })}
+                      className="w-full py-3 bg-white border border-slate-200 text-slate-400 rounded-xl text-[10px] font-black uppercase hover:text-red-500 hover:border-red-200 transition-all"
+                    >
+                      Resetar Posição do Logo
+                    </button>
+                  </div>
+                </section>
+
+                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
+                    DICA: Ative a "Edição Visual" e arraste o logo diretamente na janela de prévia para ajustar o posicionamento.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
           
@@ -344,6 +418,10 @@ export default function App() {
           values={values}
           onDownloadPDF={handleDownloadPDF}
           onDownloadWord={handleDownloadWord}
+          logoPosition={logoPosition}
+          setLogoPosition={setLogoPosition}
+          isDraggingEnabled={isDraggingEnabled}
+          showFooterLogo={showFooterLogo}
         />
 
         {/* Hidden PDF Export Container */}
@@ -351,6 +429,8 @@ export default function App() {
           template={template}
           values={values}
           id="hidden-pdf-export"
+          logoPosition={logoPosition}
+          showFooterLogo={showFooterLogo}
         />
       </main>
 
