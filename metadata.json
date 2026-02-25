@@ -1,0 +1,5 @@
+{
+  "name": "GERADOR CONTRATO SELL",
+  "description": "Uma SPA para gerar documentos dinâmicos com variáveis, Markdown e exportação para PDF e Word.",
+  "requestFramePermissions": ["microphone"]
+}
