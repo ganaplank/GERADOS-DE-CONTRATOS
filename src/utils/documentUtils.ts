@@ -138,6 +138,14 @@ export const generatePDF = async (elementId: string, filename: string = 'documen
       URL.revokeObjectURL(url);
     }, 100);
 
+    // Memory cleanup
+    headerCanvas.width = 0;
+    headerCanvas.height = 0;
+    contentCanvas.width = 0;
+    contentCanvas.height = 0;
+    footerCanvas.width = 0;
+    footerCanvas.height = 0;
+
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw error;
