@@ -8,9 +8,17 @@ interface HiddenPDFTemplateProps {
   template: string;
   values: Record<string, string>;
   id: string;
+  logoPosition?: { x: number, y: number };
+  showFooterLogo?: boolean;
 }
 
-export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, values, id }) => {
+export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ 
+  template, 
+  values, 
+  id,
+  logoPosition = { x: 0, y: 0 },
+  showFooterLogo = false
+}) => {
   const processedContent = replaceVariables(template, values);
   const logoUrl = typeof window !== 'undefined' ? `${window.location.origin}/logo-sell.png` : '/logo-sell.png';
 
@@ -30,23 +38,32 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, 
         fontSize: '11pt',
         lineHeight: '1.6',
         boxSizing: 'border-box',
-        display: 'block', // Changed from flex to block for better pagination slicing
+        display: 'block',
       }}
     >
-      {/* Cabeçalho Oficial - Repetível se fatiado manualmente, mas aqui fica no topo */}
+      {/* Cabeçalho Oficial */}
       <div id={`${id}-header`} style={{ 
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center', 
         marginBottom: '10mm',
-        textAlign: 'center' 
+        textAlign: 'center',
+        position: 'relative'
       }}>
-        <img 
-          src={logoUrl} 
-          alt="Sell Administradora" 
-          crossOrigin="anonymous"
-          style={{ height: '60px', objectFit: 'contain', marginBottom: '4mm' }} 
-        />
+        <div style={{
+          transform: `translate(${logoPosition.x}px, ${logoPosition.y}px)`,
+          transition: 'none'
+        }}>
+          <img 
+            src={logoUrl} 
+            alt="Sell Administradora" 
+            crossOrigin="anonymous"
+            style={{ height: '60px', objectFit: 'contain', marginBottom: '4mm' }} 
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </div>
         <h1 style={{ 
           margin: 0, 
           fontFamily: 'Georgia, serif', 
@@ -54,7 +71,8 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, 
           fontWeight: 'bold', 
           color: '#0F2940',
           letterSpacing: '0.15em',
-          textTransform: 'uppercase'
+          textTransform: 'uppercase',
+          marginTop: '2mm'
         }}>
           SELL ADMINISTRADORA
         </h1>
@@ -83,6 +101,17 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, 
         color: '#6b7280',
         fontFamily: 'Arial, Helvetica, sans-serif'
       }}>
+        {showFooterLogo && (
+          <img 
+            src={logoUrl} 
+            alt="Logo Sell" 
+            crossOrigin="anonymous"
+            style={{ height: '24px', objectFit: 'contain', marginBottom: '4mm', opacity: 0.5, filter: 'grayscale(100%)' }} 
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        )}
         <p style={{ margin: 0 }}>
           (11) 3796-0203 | atendimento@selladm.com.br | selladm.com.br
         </p>
