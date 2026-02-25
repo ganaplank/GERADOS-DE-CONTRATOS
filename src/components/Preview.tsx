@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import Draggable from 'react-draggable';
 import { replaceVariables } from '../utils/documentUtils';
-import { Download, FileDown, Eye, GripHorizontal, Loader2, Minimize2, Maximize2 } from 'lucide-react';
+import { Download, FileDown, Eye, GripHorizontal, Loader2, Minimize2, Maximize2, Move } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface PreviewProps {
@@ -11,17 +12,31 @@ interface PreviewProps {
   values: Record<string, string>;
   onDownloadPDF: () => Promise<void>;
   onDownloadWord: () => Promise<void>;
+  logoPosition: { x: number, y: number };
+  setLogoPosition: (pos: { x: number, y: number }) => void;
+  isDraggingEnabled: boolean;
+  showFooterLogo: boolean;
 }
 
-export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPDF, onDownloadWord }) => {
+export const Preview: React.FC<PreviewProps> = ({ 
+  template, 
+  values, 
+  onDownloadPDF, 
+  onDownloadWord,
+  logoPosition,
+  setLogoPosition,
+  isDraggingEnabled,
+  showFooterLogo
+}) => {
   const processedContent = replaceVariables(template, values);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingWord, setIsGeneratingWord] = useState(false);
   const [isMinimized, setIsMinimized] = useLocalStorage<boolean>('sell-preview-minimized', false);
+  const nodeRef = useRef(null);
 
-  // Drag state
+  // Window position state
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingWindow, setIsDraggingWindow] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Resize state
@@ -29,17 +44,17 @@ export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPD
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
-  // Initialize position on mount
+  // Initialize window position on mount
   useEffect(() => {
     const initialX = Math.max(20, window.innerWidth - size.width - 40);
     const initialY = 100;
     setPosition({ x: initialX, y: initialY });
   }, []);
 
-  // Handle drag events
+  // Handle window drag events
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
+      if (isDraggingWindow) {
         setPosition({
           x: e.clientX - dragOffset.x,
           y: e.clientY - dragOffset.y,
@@ -48,10 +63,10 @@ export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPD
     };
 
     const handleMouseUp = () => {
-      setIsDragging(false);
+      setIsDraggingWindow(false);
     };
 
-    if (isDragging) {
+    if (isDraggingWindow) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -60,7 +75,7 @@ export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPD
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragOffset]);
+  }, [isDraggingWindow, dragOffset]);
 
   // Handle resize events
   useEffect(() => {
@@ -89,7 +104,7 @@ export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPD
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button')) return;
-    setIsDragging(true);
+    setIsDraggingWindow(true);
     setDragOffset({
       x: e.clientX - position.x,
       y: e.clientY - position.y,
@@ -223,20 +238,43 @@ export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPD
         )}
         {/* A4 Paper representation */}
         <div 
-          className="bg-white w-full max-w-[210mm] min-h-[297mm] p-[20mm] shadow-2xl rounded-sm ring-1 ring-black/5 transition-all flex flex-col"
+          className="bg-white w-full max-w-[210mm] min-h-[297mm] p-[20mm] shadow-2xl rounded-sm ring-1 ring-black/5 transition-all flex flex-col relative"
           style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
         >
+          {/* Page Break Indicators (Visual only) */}
+          <div className="absolute left-0 right-0 top-[297mm] border-t-2 border-dashed border-slate-200 z-10 pointer-events-none">
+            <span className="absolute right-2 -top-3 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-black text-slate-400 uppercase tracking-widest">Fim da Página 1</span>
+          </div>
+          <div className="absolute left-0 right-0 top-[594mm] border-t-2 border-dashed border-slate-200 z-10 pointer-events-none">
+            <span className="absolute right-2 -top-3 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-black text-slate-400 uppercase tracking-widest">Fim da Página 2</span>
+          </div>
+
           {/* Header do Timbrado na Prévia */}
-          <div className="flex flex-col items-center mb-8">
-            <img 
-              src="/logo-sell.png" 
-              alt="Logo Sell" 
-              className="h-14 object-contain mb-2"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-            <h1 className="text-sell-blue font-bold text-lg tracking-[0.2em] uppercase font-serif">SELL ADMINISTRADORA</h1>
+          <div className="flex flex-col items-center mb-8 relative">
+            <Draggable
+              nodeRef={nodeRef}
+              disabled={!isDraggingEnabled}
+              position={logoPosition}
+              onStop={(e, data) => setLogoPosition({ x: data.x, y: data.y })}
+            >
+              <div ref={nodeRef} className={`cursor-${isDraggingEnabled ? 'move' : 'default'} relative group`}>
+                <img 
+                  src="/logo-sell.png" 
+                  alt="Logo Sell" 
+                  className={`h-14 object-contain mb-2 transition-all ${isDraggingEnabled ? 'ring-2 ring-sell-green ring-offset-4 rounded-sm' : ''}`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                {isDraggingEnabled && (
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-sell-green text-white text-[8px] font-black px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
+                    <Move className="w-2 h-2" />
+                    ARRASTE PARA POSICIONAR
+                  </div>
+                )}
+              </div>
+            </Draggable>
+            <h1 className="text-sell-blue font-bold text-lg tracking-[0.2em] uppercase font-serif mt-2">SELL ADMINISTRADORA</h1>
             <div className="w-full h-[1px] bg-sell-green mt-4"></div>
           </div>
 
@@ -254,7 +292,17 @@ export const Preview: React.FC<PreviewProps> = ({ template, values, onDownloadPD
           </div>
 
           {/* Rodapé do Timbrado na Prévia */}
-          <div className="mt-12 pt-6 border-t border-slate-200 text-center text-[9pt] text-slate-400 font-sans">
+          <div className="mt-12 pt-6 border-t border-slate-200 text-center text-[9pt] text-slate-400 font-sans flex flex-col items-center gap-4">
+            {showFooterLogo && (
+              <img 
+                src="/logo-sell.png" 
+                alt="Logo Sell" 
+                className="h-6 object-contain opacity-50 grayscale"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            )}
             <p>(11) 3796-0203 | atendimento@selladm.com.br | selladm.com.br</p>
           </div>
         </div>
