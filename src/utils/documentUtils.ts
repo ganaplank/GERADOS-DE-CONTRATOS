@@ -24,7 +24,7 @@ export const replaceVariables = (template: string, values: Record<string, string
 
 /**
  * Generates a high-quality PDF from an HTML element with multi-page support
- * and repeated header/footer
+ * and repeated header/footer. Uses a slicing technique to handle long content.
  */
 export const generatePDF = async (elementId: string, filename: string = 'documento_sell.pdf') => {
   const element = document.getElementById(elementId);
@@ -34,29 +34,29 @@ export const generatePDF = async (elementId: string, filename: string = 'documen
   
   if (!element || !header || !content || !footer) {
     console.error('Required PDF elements not found');
-    return;
+    throw new Error('Required PDF elements not found');
   }
 
   try {
-    // Wait for all images to load
+    // Wait for all images to load to avoid blank images in PDF
     const images = Array.from(element.getElementsByTagName('img'));
     await Promise.all(images.map(img => {
       if (img.complete) return Promise.resolve();
       return new Promise((resolve) => {
         img.onload = resolve;
-        img.onerror = resolve;
+        img.onerror = resolve; // Continue even if image fails
       });
     }));
 
     const canvasOptions = {
-      scale: 2,
+      scale: 2, // High quality
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
     };
 
-    // Capture Header, Content and Footer separately
+    // Capture Header, Content and Footer separately for better pagination control
     const [headerCanvas, contentCanvas, footerCanvas] = await Promise.all([
       html2canvas(header, canvasOptions),
       html2canvas(content, canvasOptions),
@@ -72,54 +72,59 @@ export const generatePDF = async (elementId: string, filename: string = 'documen
     const pdfWidth = 210;
     const pdfHeight = 297;
     const margin = 20; // 20mm margin
+    const contentWidth = pdfWidth - (2 * margin);
 
-    // Calculate heights in mm
-    const headerHeight = (headerCanvas.height * (pdfWidth - 2 * margin)) / headerCanvas.width;
-    const footerHeight = (footerCanvas.height * (pdfWidth - 2 * margin)) / footerCanvas.width;
-    const contentWidth = pdfWidth - 2 * margin;
-    const availableHeight = pdfHeight - headerHeight - footerHeight - (margin * 2.5); // Extra space for padding
-
+    // Calculate heights in mm relative to PDF width
+    const headerHeight = (headerCanvas.height * contentWidth) / headerCanvas.width;
+    const footerHeight = (footerCanvas.height * contentWidth) / footerCanvas.width;
     const contentHeightInMm = (contentCanvas.height * contentWidth) / contentCanvas.width;
+    
+    // Available height for content on each page
+    // We leave some extra space (5mm) between sections
+    const availableHeightPerPage = pdfHeight - headerHeight - footerHeight - (margin * 2) - 10;
+
     const imgDataHeader = headerCanvas.toDataURL('image/png');
     const imgDataContent = contentCanvas.toDataURL('image/png');
     const imgDataFooter = footerCanvas.toDataURL('image/png');
 
     let heightLeft = contentHeightInMm;
-    let position = 0;
-    let page = 1;
+    let currentContentPosition = 0;
+    let pageNumber = 1;
 
     while (heightLeft > 0) {
-      if (page > 1) pdf.addPage();
+      if (pageNumber > 1) pdf.addPage();
 
-      // 1. Add Content Slice (with offset)
+      // 1. Add Content Slice first (it will be behind header/footer if they overlap)
+      // We calculate where to place the big content image so the current "slice" is visible
       pdf.addImage(
         imgDataContent, 
         'PNG', 
         margin, 
-        margin + headerHeight + 5 + position, 
+        margin + headerHeight + 5 + currentContentPosition, 
         contentWidth, 
         contentHeightInMm
       );
 
-      // 2. Cover Header Area with White Rect
+      // 2. Cover Header Area with White Rect to prevent content bleed
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, pdfWidth, margin + headerHeight + 2, 'F');
 
-      // 3. Cover Footer Area with White Rect
+      // 3. Cover Footer Area with White Rect to prevent content bleed
       pdf.rect(0, pdfHeight - footerHeight - margin - 2, pdfWidth, footerHeight + margin + 2, 'F');
 
-      // 4. Add Header (on top of content)
+      // 4. Add Header (on top of the white rect)
       pdf.addImage(imgDataHeader, 'PNG', margin, margin, contentWidth, headerHeight);
 
-      // 5. Add Footer (on top of content)
+      // 5. Add Footer (on top of the white rect)
       pdf.addImage(imgDataFooter, 'PNG', margin, pdfHeight - footerHeight - margin, contentWidth, footerHeight);
 
-      heightLeft -= availableHeight;
-      position -= availableHeight;
-      page++;
+      // Update trackers
+      heightLeft -= availableHeightPerPage;
+      currentContentPosition -= availableHeightPerPage;
+      pageNumber++;
     }
     
-    // Download
+    // Final download
     const pdfBlob = pdf.output('blob');
     const url = URL.createObjectURL(pdfBlob);
     const a = document.createElement('a');
