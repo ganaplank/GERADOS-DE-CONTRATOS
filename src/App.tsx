@@ -73,7 +73,9 @@ export default function App() {
     try {
       await generatePDF('hidden-pdf-export', `Contrato_${values['Nome_Cliente'] || 'Sell'}.pdf`);
     } catch (error) {
-      alert('Erro ao gerar PDF. Verifique se o logo existe na pasta public.');
+      console.error("PDF Generation Error:", error);
+      alert(`Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      throw error; // Re-throw to let Preview.tsx catch it and stop loading state
     }
   };
 
