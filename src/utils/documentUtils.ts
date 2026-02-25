@@ -23,13 +23,17 @@ export const replaceVariables = (template: string, values: Record<string, string
 };
 
 /**
- * Generates a high-quality PDF from an HTML element
+ * Generates a high-quality PDF from an HTML element with multi-page support
+ * and repeated header/footer
  */
 export const generatePDF = async (elementId: string, filename: string = 'documento_sell.pdf') => {
   const element = document.getElementById(elementId);
+  const header = document.getElementById(`${elementId}-header`);
+  const content = document.getElementById(`${elementId}-content`);
+  const footer = document.getElementById(`${elementId}-footer`);
   
-  if (!element) {
-    console.error('Element not found:', elementId);
+  if (!element || !header || !content || !footer) {
+    console.error('Required PDF elements not found');
     return;
   }
 
@@ -44,36 +48,78 @@ export const generatePDF = async (elementId: string, filename: string = 'documen
       });
     }));
 
-    // Capture with high scale for professional quality
-    const canvas = await html2canvas(element, {
+    const canvasOptions = {
       scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
-      onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.getElementById(elementId);
-        if (clonedElement) {
-          clonedElement.style.transform = 'none';
-          clonedElement.style.boxShadow = 'none';
-        }
-      }
-    });
+      logging: false,
+    };
 
-    const imgData = canvas.toDataURL('image/png');
+    // Capture Header, Content and Footer separately
+    const [headerCanvas, contentCanvas, footerCanvas] = await Promise.all([
+      html2canvas(header, canvasOptions),
+      html2canvas(content, canvasOptions),
+      html2canvas(footer, canvasOptions)
+    ]);
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
     });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+    const margin = 20; // 20mm margin
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    // Calculate heights in mm
+    const headerHeight = (headerCanvas.height * (pdfWidth - 2 * margin)) / headerCanvas.width;
+    const footerHeight = (footerCanvas.height * (pdfWidth - 2 * margin)) / footerCanvas.width;
+    const contentWidth = pdfWidth - 2 * margin;
+    const availableHeight = pdfHeight - headerHeight - footerHeight - (margin * 2.5); // Extra space for padding
+
+    const contentHeightInMm = (contentCanvas.height * contentWidth) / contentCanvas.width;
+    const imgDataHeader = headerCanvas.toDataURL('image/png');
+    const imgDataContent = contentCanvas.toDataURL('image/png');
+    const imgDataFooter = footerCanvas.toDataURL('image/png');
+
+    let heightLeft = contentHeightInMm;
+    let position = 0;
+    let page = 1;
+
+    while (heightLeft > 0) {
+      if (page > 1) pdf.addPage();
+
+      // 1. Add Content Slice (with offset)
+      pdf.addImage(
+        imgDataContent, 
+        'PNG', 
+        margin, 
+        margin + headerHeight + 5 + position, 
+        contentWidth, 
+        contentHeightInMm
+      );
+
+      // 2. Cover Header Area with White Rect
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, pdfWidth, margin + headerHeight + 2, 'F');
+
+      // 3. Cover Footer Area with White Rect
+      pdf.rect(0, pdfHeight - footerHeight - margin - 2, pdfWidth, footerHeight + margin + 2, 'F');
+
+      // 4. Add Header (on top of content)
+      pdf.addImage(imgDataHeader, 'PNG', margin, margin, contentWidth, headerHeight);
+
+      // 5. Add Footer (on top of content)
+      pdf.addImage(imgDataFooter, 'PNG', margin, pdfHeight - footerHeight - margin, contentWidth, footerHeight);
+
+      heightLeft -= availableHeight;
+      position -= availableHeight;
+      page++;
+    }
     
-    // Download using blob to avoid iframe restrictions
+    // Download
     const pdfBlob = pdf.output('blob');
     const url = URL.createObjectURL(pdfBlob);
     const a = document.createElement('a');
