@@ -41,6 +41,43 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({
         display: 'block',
       }}
     >
+      <style>{`
+        #${id}, #${id} *, #${id} *::before, #${id} *::after {
+          border-color: #e5e7eb !important;
+          outline-color: transparent !important;
+          text-decoration-color: inherit !important;
+          box-shadow: none !important;
+          caret-color: transparent !important;
+          column-rule-color: transparent !important;
+          fill: currentColor !important;
+          stroke: currentColor !important;
+        }
+        #${id} *::before, #${id} *::after {
+          color: inherit !important;
+          background-color: transparent !important;
+        }
+        #${id} .markdown-body, #${id} .markdown-body p, #${id} .markdown-body li {
+          color: #334155 !important;
+          background-color: transparent !important;
+        }
+        #${id} .markdown-body h1, #${id} .markdown-body h2, #${id} .markdown-body h3, #${id} .markdown-body h4, #${id} .markdown-body h5, #${id} .markdown-body h6 {
+          color: #0F2940 !important;
+        }
+        #${id} .markdown-body a {
+          color: #6BBF59 !important;
+        }
+        #${id} .markdown-body strong {
+          color: #0f172a !important;
+        }
+        #${id} .markdown-body blockquote {
+          color: #475569 !important;
+          border-left-color: #cbd5e1 !important;
+        }
+        #${id} .markdown-body code {
+          color: #0f172a !important;
+          background-color: #f1f5f9 !important;
+        }
+      `}</style>
       {/* Cabeçalho Oficial */}
       <div id={`${id}-header`} style={{ 
         display: 'flex', 
