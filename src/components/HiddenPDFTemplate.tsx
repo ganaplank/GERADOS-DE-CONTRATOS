@@ -12,6 +12,7 @@ interface HiddenPDFTemplateProps {
 
 export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, values, id }) => {
   const processedContent = replaceVariables(template, values);
+  const logoUrl = typeof window !== 'undefined' ? `${window.location.origin}/logo-sell.png` : '/logo-sell.png';
 
   return (
     <div
@@ -21,21 +22,19 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, 
         left: '-9999px',
         top: 0,
         width: '210mm',
-        minHeight: '297mm',
         zIndex: -1,
         backgroundColor: '#ffffff',
         color: '#1a1a1a',
-        padding: '25mm 20mm 25mm 20mm',
+        padding: '20mm',
         fontFamily: 'Georgia, "Times New Roman", serif',
         fontSize: '11pt',
         lineHeight: '1.6',
         boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
+        display: 'block', // Changed from flex to block for better pagination slicing
       }}
     >
-      {/* Cabeçalho Oficial */}
-      <div style={{ 
+      {/* Cabeçalho Oficial - Repetível se fatiado manualmente, mas aqui fica no topo */}
+      <div id={`${id}-header`} style={{ 
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center', 
@@ -43,13 +42,10 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, 
         textAlign: 'center' 
       }}>
         <img 
-          src="/logo-sell.png" 
+          src={logoUrl} 
           alt="Sell Administradora" 
           crossOrigin="anonymous"
           style={{ height: '60px', objectFit: 'contain', marginBottom: '4mm' }} 
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
         />
         <h1 style={{ 
           margin: 0, 
@@ -71,14 +67,14 @@ export const HiddenPDFTemplate: React.FC<HiddenPDFTemplateProps> = ({ template, 
       </div>
 
       {/* Corpo do Documento */}
-      <div className="pdf-markdown-content" style={{ flex: 1, textAlign: 'justify' }}>
+      <div id={`${id}-content`} className="pdf-markdown-content" style={{ textAlign: 'justify', minHeight: '200mm' }}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
           {processedContent}
         </ReactMarkdown>
       </div>
 
       {/* Rodapé Oficial */}
-      <div style={{ 
+      <div id={`${id}-footer`} style={{ 
         marginTop: '15mm', 
         paddingTop: '6mm', 
         borderTop: '1px solid #e5e7eb', 
